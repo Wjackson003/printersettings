@@ -110,7 +110,6 @@ class GetPrintSet:
         try:   
             #for Py3
             ip3 = ipaddress.ip_address(ip)
-            #ip2 = ipaddress.ip_address(ip.decode())
             print('Valid ip format')
             print('Checking ip address ' + str(ip3) + ' is in network.')
             finalIPadd = self.checkinNet(ip3, isV3)
@@ -136,41 +135,30 @@ class GetPrintSet:
             self.showerrorMessage('Invalid Format', ip + ' is an invalid format please try again')
             self.tkwindowset('0.0.0.0',portNumEnt1)
 
-        
-
 
     def checkinNet(self, ipnetworkCheck, py_v):
         if py_v == True:
             ipaddress.ip_address(ipnetworkCheck) in ipaddress.ip_network('192.168.0.0/16')
 
-            #testing ping
-            for ping in range(1,4):
-                res = subprocess.call(['ping', '-c', '4', str(ipnetworkCheck)])
-
-                if(res == 0):
-                    print('ip address ' + str(ipnetworkCheck) + ' verified in network')
-                    return ipnetworkCheck
-                else:
-                    self.showerrorMessage('ERROR:Not Local','The ip address is in range but is not a local ip address')
-                    self.tkwindowset('0.0.0.0', portNumEnt1)
-
         elif py_v == False:
             ipaddress.ip_address(ipnetworkCheck) in ipaddress.ip_network(u'192.168.0.0/16')
 
-            #testing ping
-            for ping in range(1,4):
-                res = subprocess.call(['ping', '-c', '4', str(ipnetworkCheck)])
-
-                if(res == 0):
-                    print('ip address ' + str(ipnetworkCheck) + ' verified in network')
-                    return ipnetworkCheck
-                else:
-                    self.showerrorMessage('ERROR:Not Local','The ip address is in range but is not a local ip address')
-                    self.tkwindowset('0.0.0.0', portNumEnt1)
         else:
             self.showerrorMessage('Not In Network','\nThis ip address ' + str(ipnetworkCheck) + ' is not in network.')
             self.tkwindowset('0.0.0.0', portNumEnt1)
             return ipnetworkCheck
+
+        #testing ping
+        for ping in range(1,4):
+            answer = subprocess.call(['ping', '-c', '4', str(ipnetworkCheck)])
+
+            if(answer == 0):
+                print('\nip address ' + str(ipnetworkCheck) + ' verified in network')
+                return ipnetworkCheck
+            else:
+                self.showerrorMessage('ERROR:Not Local','The ip address is in range but is not a local ip address')
+                self.tkwindowset('0.0.0.0', portNumEnt1)
+
 
         
     def checkportNum(self, portNum):

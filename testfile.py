@@ -1,7 +1,8 @@
 '''
     this is a demo how to use the workspaceip code. 
+'''    
 
-from workspaceip import *
+from workspaceip import GetPrintSet
 
 
 nGetPrintSet = GetPrintSet()
