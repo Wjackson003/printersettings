@@ -1,3 +1,9 @@
-from workspaceip import GetPrintSet
+'''
+    this is a demo how to use the workspaceip code. 
 
-GetPrintSet.checkforfile('/home/pi/Python_Code/ipset/ipsettings/printServer.ini')
+from workspaceip import *
+
+
+nGetPrintSet = GetPrintSet()
+sfile = '/home/pi/Python_Code/ipset/ipsettings/printServer.ini'
+nGetPrintSet.checkforfile(sfile)

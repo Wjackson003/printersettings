@@ -19,38 +19,47 @@ version 0.1.1: Sept 28, 2022
     WT - fix to issue with the programing stuck in a loop calling the error message. Also added the 
          a Entry box and window for user friendly entry. Also added feature to press Enter to submit your 
          submission.
+version 0.2.0: Oct 7, 2022
+    WT - made changes so the code would work on python2 and python3. 
 '''
 
 __Author__ = "W.T. Jackson III"
-__Version__ = "0.1.1" 
+__Version__ = "0.2.0" 
 
 from configparser import ConfigParser
-#from fileinput import filename
+
 import os.path
 import ipaddress
 import subprocess
-import tkinter as tk
-from tkinter import ttk
-from tkinter.ttk import *
-from turtle import bgcolor
+
+
+try:
+    import tkinter as tk
+    from tkinter import ttk
+    from tkinter import *
+except ImportError:
+    import Tkinter as tk 
+    import ttk 
+    from Tkinter import *     
 
 class GetPrintSet:  
-          
-    def checkforfile(filereceived):
+
+    def checkforfile(self, filereceived):
         global filename
-        filename = filereceived
+        self.filereceived =  filereceived
+        filename = self.filereceived
 
         printServer = os.path.exists(filename)
         try:
             if (printServer):
-                GetPrintSet.readfile()
+                self.readfile()
             else:
-                GetPrintSet.fileDNE()
+                self.fileDNE()
         except Exception as e:
             print(e)    
 
 
-    def readfile():
+    def readfile(self):
         #to read from a ini file:
     
         configGet = ConfigParser()
@@ -59,24 +68,23 @@ class GetPrintSet:
         ip = configGet.get('IPINFO', 'ipaddress')
         portNum = configGet.get('IPINFO', 'port')
 
-        if (ip == '0.0.0.0'):
-            GetPrintSet.tkwindowset(ip, portNum)
+        if (ip == '0.0.0.0' or portNum == '00000'):
+            self.tkwindowset(ip, portNum)
 
-
-    def fileDNE():
+    def fileDNE(self):
 
         configfiletext = ConfigParser()
         configfiletext['IPINFO'] = {
             'ipaddress' : '0.0.0.0',
             'port' : '00000'
         }
-        with open('/home/pi/Python_Code/ipset/ipsettings/printServer.ini', 'w') as configfile:
+        with open(filename, 'w') as configfile:
             configfiletext.write(configfile)
         
-        GetPrintSet.readfile()
+        self.readfile()
 
 
-    def writeToFile(ip, portNum):
+    def writeToFile(self, ip, portNum):
 
         portNum = str(portNum)
 
@@ -87,78 +95,102 @@ class GetPrintSet:
             'port' : portNum
         }
 
-        with open('/home/pi/Python_Code/ipset/ipsettings/printServer.ini', 'w') as configfile:
+        with open(filename, 'w') as configfile:
             configSetIp.write(configfile)
 
-        GetPrintSet.successMessage('IP Settings', 'Your ip settings have been set.')
+        self.successMessage('IP Settings', 'Your ip settings have been set.')
         exit()
 
 
-    def checkIpAdd(ip):
-        global finalIPadd
-        verifyIp = ip
-        
-        try:
-            verifyIp = ipaddress.ip_address(verifyIp)
+    def checkIpAdd(self, ip):
+        global finalIPadd     
+        isV3 = True
+        isV2 = False
+
+        try:   
+            #for Py3
+            ip3 = ipaddress.ip_address(ip)
+            #ip2 = ipaddress.ip_address(ip.decode())
             print('Valid ip format')
-            print(f'Checking ip address {verifyIp} is in network.')
-            finalIPadd = GetPrintSet.checkinNet(verifyIp)
+            print('Checking ip address ' + str(ip3) + ' is in network.')
+            finalIPadd = self.checkinNet(ip3, isV3)
 
-        except ValueError:
-            GetPrintSet.showerrorMessage('Invalid Format', f'\n{verifyIp} is an invalid format please try again')
-            GetPrintSet.tkwindowset('0.0.0.0',portNumEnt1)
+        except ValueError as e:
+            e = str(e)
+            try: 
+                if (' does not appear to be an IPv4 or IPv6 address. Did you pass in a bytes (str in Python 2) instead of a unicode object?') in e: 
+                    ip2 = ipaddress.ip_address(ip.decode())
+                    print('Valid ip format')
+                    print('Checking ip address ' + str(ip2) + ' is in network.')
+                    finalIPadd = self.checkinNet(ip2, isV2)
+                    return   
+
+                else:
+                    print(e) 
+                    self.showerrorMessage('Invalid Format', ip + ' is an invalid format please try again')
+                    self.tkwindowset('0.0.0.0',portNumEnt1)
+            except ValueError as e:
+                print(e)
+                self.showerrorMessage('Invalid Format', ip + ' is an invalid format please try again')
+                self.tkwindowset('0.0.0.0',portNumEnt1)
+            self.showerrorMessage('Invalid Format', ip + ' is an invalid format please try again')
+            self.tkwindowset('0.0.0.0',portNumEnt1)
+
+        
 
 
-    def checkinNet(ipnetworkCheck):
-        if ipaddress.ip_address(ipnetworkCheck) in ipaddress.ip_network('192.168.0.0/16'):
+    def checkinNet(self, ipnetworkCheck, py_v):
+        if py_v == True:
+            ipaddress.ip_address(ipnetworkCheck) in ipaddress.ip_network('192.168.0.0/16')
+
             #testing ping
             for ping in range(1,4):
                 res = subprocess.call(['ping', '-c', '4', str(ipnetworkCheck)])
 
                 if(res == 0):
-                    print(f'ip address {ipnetworkCheck} verified in network')
+                    print('ip address ' + str(ipnetworkCheck) + ' verified in network')
                     return ipnetworkCheck
                 else:
-                    GetPrintSet.showerrorMessage('ERROR:Not Local','The ip address is in range but is not a local ip address')
-                    GetPrintSet.tkwindowset('0.0.0.0', portNumEnt1)
+                    self.showerrorMessage('ERROR:Not Local','The ip address is in range but is not a local ip address')
+                    self.tkwindowset('0.0.0.0', portNumEnt1)
+
+        elif py_v == False:
+            ipaddress.ip_address(ipnetworkCheck) in ipaddress.ip_network(u'192.168.0.0/16')
+
+            #testing ping
+            for ping in range(1,4):
+                res = subprocess.call(['ping', '-c', '4', str(ipnetworkCheck)])
+
+                if(res == 0):
+                    print('ip address ' + str(ipnetworkCheck) + ' verified in network')
+                    return ipnetworkCheck
+                else:
+                    self.showerrorMessage('ERROR:Not Local','The ip address is in range but is not a local ip address')
+                    self.tkwindowset('0.0.0.0', portNumEnt1)
         else:
-            GetPrintSet.showerrorMessage('Not In Network',f'\nThis ip address {ipnetworkCheck} is not in network.')
-            GetPrintSet.tkwindowset('0.0.0.0', portNumEnt1)
+            self.showerrorMessage('Not In Network','\nThis ip address ' + str(ipnetworkCheck) + ' is not in network.')
+            self.tkwindowset('0.0.0.0', portNumEnt1)
             return ipnetworkCheck
+
         
-    def checkportNum(portNum):
+    def checkportNum(self, portNum):
         isvalidinput = False
 
-        if portNum.isnumeric() == isvalidinput:
-            GetPrintSet.showerrorMessage('Invalid Data', 'You may have typed a string please check your entry.')
-            GetPrintSet.tkwindowset(finalIPadd,'00000')
+        if portNum.isdigit() == isvalidinput:
+            self.showerrorMessage('Invalid Data', 'You may have typed a string please check your entry.')
+            self.tkwindowset(finalIPadd,'00000')
 
         if len(portNum) < 5 or len(portNum) > 5 :
-            GetPrintSet.showerrorMessage('Invalid Length', 'Your port number must be 5 numbers.')
-            GetPrintSet.tkwindowset(finalIPadd,'00000')
+            self.showerrorMessage('Invalid Length', 'Your port number must be 5 numbers.')
+            self.tkwindowset(finalIPadd,'00000')
             
 
         isvalidinput = True
 
         if isvalidinput:
-            GetPrintSet.writeToFile(finalIPadd, portNum)
+            self.writeToFile(finalIPadd, portNum)
 
-        #get port of ip address
-        '''
-        portNum = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        portNum.bind((ip,0))
-        portNum = portNum.getsockname()[1]
-        print(f'This is your port number: {portNum}')
-        '''
-
-        ''' 
-        iphost = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        hostname = socket.gethostname()
-        ip = socket.gethostbyname(hostname)
-        iphost.bind((ip, 0))
-        '''
-
-    def showerrorMessage(errTitle, errText):
+    def showerrorMessage(self, errTitle, errText):
         errorIpAdd = tk.Tk()
         errorIpAdd.configure(bg='red')
         errorIpAdd.title(errTitle)
@@ -167,7 +199,7 @@ class GetPrintSet:
         Button(errorIpAdd, text='Close', command=errorIpAdd.destroy).pack()
         errorIpAdd.mainloop()
 
-    def successMessage(Title, compText):
+    def successMessage(self, Title, compText):
         compTask = tk.Tk()
         compTask.configure(bg='green')
         compTask.title(Title)
@@ -176,7 +208,10 @@ class GetPrintSet:
         Button(compTask, text='Close', command=compTask.destroy).pack()
         compTask.mainloop()
 
-    def getData(event):
+    def getData1(self, event):
+        self.getData()
+
+    def getData(self):
         global ipEntered1 
         global portNumEnt1 
 
@@ -188,10 +223,10 @@ class GetPrintSet:
 
         mainWindow.destroy()
 
-        GetPrintSet.checkIpAdd(ipEntered1)
-        GetPrintSet.checkportNum(portNumEnt1)
+        self.checkIpAdd(ipEntered1)
+        self.checkportNum(portNumEnt1)
 
-    def tkwindowset(ip, portNum):
+    def tkwindowset(self, ip, portNum):
         global mainWindow
         global ipEntered
         global portNumEnt
@@ -218,7 +253,7 @@ class GetPrintSet:
                 portNumEnt.grid(column=1, row=1, sticky=tk.E, padx=5, pady=5)
     
             else:
-                portLabel = tk.Label(mainWindow, text= f'Port Number: ')
+                portLabel = tk.Label(mainWindow, text= 'Port Number: ')
                 portLabel.grid(column=0, row=1,sticky=tk.W, padx=5, pady=5)
 
                 portNumEnt = ttk.Entry(mainWindow)
@@ -227,7 +262,7 @@ class GetPrintSet:
                 portNumEnt.grid(column=1, row=1, sticky=tk.E, padx=5, pady=5)
 
         if ip != '0.0.0.0' :
-            ipLabel = tk.Label(mainWindow, text= f'IP Address: ')
+            ipLabel = tk.Label(mainWindow, text= 'IP Address: ')
             ipLabel.grid(column=0, row=0,sticky=tk.W, padx=5, pady=5)
 
             ipEntered = ttk.Entry(mainWindow)
@@ -242,10 +277,10 @@ class GetPrintSet:
                 portNumEnt = ttk.Entry(mainWindow)
                 portNumEnt.grid(column=1, row=1, sticky=tk.E, padx=5, pady=5)
 
-        submitbutton = ttk.Button(mainWindow, text='Submit', command=GetPrintSet.getData)
+        submitbutton = ttk.Button(mainWindow, text='Submit', command=self.getData)
         submitbutton.grid(column=1, row=3, sticky=tk.E, padx=5,pady=5)
         
-        mainWindow.bind('<Return>',GetPrintSet.getData)
+        mainWindow.bind('<Return>',self.getData1)
 
         mainWindow.mainloop()
 
