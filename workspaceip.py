@@ -72,7 +72,6 @@ class GetPrintSet:
 
     def readfile(self):
         #to read from a ini file:
-    
         configGet = ConfigParser()
         configGet.read(filename) 
 
@@ -81,8 +80,10 @@ class GetPrintSet:
 
         if (ip == '0.0.0.0' or portNum == '00000'):
             self.tkwindowset(ip, portNum)
+            self.checkServer()
+        else: 
+            self.checkServer()    
 
-        self.checkServer()    
 
     def fileDNE(self):
 
@@ -113,7 +114,7 @@ class GetPrintSet:
 
         print(Fore.GREEN + '\nYOUR PRINTER SETTINGS HAVE BEEN SET!')
         print('\nChecking to see if printer is available.')
-        self.checkServer()
+        
 
 
     def checkIpAdd(self, ip):
@@ -189,7 +190,6 @@ class GetPrintSet:
         if len(portNum) < 5 or len(portNum) > 5 :
             self.showerrorMessage('Invalid Length', 'Your port number must be 5 numbers.')
             self.tkwindowset(finalIPadd,'00000')
-            
 
         isvalidinput = True
 
@@ -207,8 +207,10 @@ class GetPrintSet:
         Button(errorIpAdd, text='Close', command=errorIpAdd.destroy).pack()
         errorIpAdd.mainloop()
 
+
     def getData1(self, event):
         self.getData()
+
 
     def getData(self):
         global ipEntered1 
@@ -224,6 +226,7 @@ class GetPrintSet:
 
         self.checkIpAdd(ipEntered1)
         self.checkportNum(portNumEnt1)
+
 
     def tkwindowset(self, ip, portNum):
         global mainWindow
@@ -308,8 +311,8 @@ class GetPrintSet:
 
                 s.close()
                 print( '\nPrinter Status: ' + Fore.GREEN + 'CONNECTED', '\nPrinter is ready to be used!')
-                
-                break
+    
+                connection = True
 
             except Exception as e:
                 print ('\nPrinter Status: ' + str(e))
@@ -317,6 +320,7 @@ class GetPrintSet:
                 attempts += 1
                 time.sleep(5)
  
+
 def main():
     nGetPrintSet = GetPrintSet()
     dirname = os.path.dirname(__file__)
