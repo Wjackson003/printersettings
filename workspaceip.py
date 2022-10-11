@@ -21,16 +21,27 @@ version 0.1.1: Sept 28, 2022
          submission.
 version 0.2.0: Oct 7, 2022
     WT - made changes so the code would work on python2 and python3. 
+Version 0.2.1: Oct 11, 2022
+    WT - made change so that the program would check to make sure that the printer was up by tyring to
+         connect to the printer and close it. if it does not connect that means the printer is not up and
+         running and there may be an error. if the ini file is already set you can still run the program
+         to check to make sure the printer is up and running.
 '''
 
 __Author__ = "W.T. Jackson III"
-__Version__ = "0.2.0" 
+__Version__ = "0.2.1" 
 
 from configparser import ConfigParser
+import colorama
+from colorama import Fore
+colorama.init(autoreset=True)
 
 import os.path
 import ipaddress
 import subprocess
+
+import os,struct,socket
+import time
 
 
 try:
@@ -65,18 +76,20 @@ class GetPrintSet:
         configGet = ConfigParser()
         configGet.read(filename) 
 
-        ip = configGet.get('IPINFO', 'ipaddress')
-        portNum = configGet.get('IPINFO', 'port')
+        ip = configGet.get('PRINTERSET', 'ipaddress')
+        portNum = configGet.get('PRINTERSET', 'port')
 
         if (ip == '0.0.0.0' or portNum == '00000'):
             self.tkwindowset(ip, portNum)
 
+        self.checkServer()    
+
     def fileDNE(self):
 
         configfiletext = ConfigParser()
-        configfiletext['IPINFO'] = {
+        configfiletext['PRINTERSET'] = {
             'ipaddress' : '0.0.0.0',
-            'port' : '00000'
+            'port' : '12349'
         }
         with open(filename, 'w') as configfile:
             configfiletext.write(configfile)
@@ -90,7 +103,7 @@ class GetPrintSet:
 
         configSetIp = ConfigParser()
 
-        configSetIp['IPINFO'] = {
+        configSetIp['PRINTERSET'] = {
             'ipaddress' : ip,
             'port' : portNum
         }
@@ -98,8 +111,9 @@ class GetPrintSet:
         with open(filename, 'w') as configfile:
             configSetIp.write(configfile)
 
-        self.successMessage('IP Settings', 'Your ip settings have been set.')
-        exit()
+        print(Fore.GREEN + '\nYOUR PRINTER SETTINGS HAVE BEEN SET!')
+        print('\nChecking to see if printer is available.')
+        self.checkServer()
 
 
     def checkIpAdd(self, ip):
@@ -148,12 +162,16 @@ class GetPrintSet:
             self.tkwindowset('0.0.0.0', portNumEnt1)
             return ipnetworkCheck
 
+        FNULL = open(os.devnull, 'w')
+
         #testing ping
         for ping in range(1,4):
-            answer = subprocess.call(['ping', '-c', '4', str(ipnetworkCheck)])
+            answer = subprocess.call(['ping', '-c', '4', str(ipnetworkCheck)], 
+            stdout = FNULL, 
+            stderr = subprocess.STDOUT)
 
             if(answer == 0):
-                print('\nip address ' + str(ipnetworkCheck) + ' verified in network')
+                print('\nIP Address ' + str(ipnetworkCheck) + ' verified in network')
                 return ipnetworkCheck
             else:
                 self.showerrorMessage('ERROR:Not Local','The ip address is in range but is not a local ip address')
@@ -183,18 +201,11 @@ class GetPrintSet:
         errorIpAdd.configure(bg='red')
         errorIpAdd.title(errTitle)
         errorIpAdd.geometry("750x100")
+        errorIpAdd.eval('tk::PlaceWindow . center')
+
         tk.Label(errorIpAdd, bg='red', text=errText,font='Roman 15').pack()
         Button(errorIpAdd, text='Close', command=errorIpAdd.destroy).pack()
         errorIpAdd.mainloop()
-
-    def successMessage(self, Title, compText):
-        compTask = tk.Tk()
-        compTask.configure(bg='green')
-        compTask.title(Title)
-        compTask.geometry("750x100")
-        tk.Label(compTask, bg='green', text=compText,font='Roman 15').pack()
-        Button(compTask, text='Close', command=compTask.destroy).pack()
-        compTask.mainloop()
 
     def getData1(self, event):
         self.getData()
@@ -223,6 +234,7 @@ class GetPrintSet:
         mainWindow.geometry('475x100')
         mainWindow.title('Printer Settings')
         mainWindow.resizable(0, 0)
+        mainWindow.eval('tk::PlaceWindow . center')
 
         mainWindow.columnconfigure(0, weight=1)
         mainWindow.columnconfigure(1, weight=3)
@@ -272,7 +284,43 @@ class GetPrintSet:
 
         mainWindow.mainloop()
 
-#if __name__ == "__main__":
-#    GetPrintSet.checkforfile()
+    def checkServer(self):
+        connection = False
+        attempts = 1
+
+        configGet = ConfigParser()
+        configGet.read(filename) 
+
+        finalIPadd = configGet.get('PRINTERSET', 'ipaddress')
+        portNum = configGet.get('PRINTERSET', 'port')
+        portNum = int(portNum)
+
+        while connection == False:
+            if attempts > 4:
+                print('\n' + Fore.RED + 'Attempts have been met now exiting!')
+                break
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+                s.settimeout(30)
+
+                print('Trying to Connect to: ' + finalIPadd)
+                s.connect((str(finalIPadd), portNum))
+
+                s.close()
+                print( '\nPrinter Status: ' + Fore.GREEN + 'CONNECTED', '\nPrinter is ready to be used!')
+                
+                break
+
+            except Exception as e:
+                print ('\nPrinter Status: ' + str(e))
+                print(Fore.YELLOW + 'The printer may not be connected')
+                attempts += 1
+                time.sleep(5)
+ 
+def main():
+    nGetPrintSet = GetPrintSet()
+    dirname = os.path.dirname(__file__)
+    sfile = os.path.join(dirname, 'printServer.ini')
+    nGetPrintSet.checkforfile(sfile)
 
 
