@@ -306,11 +306,12 @@ class GetPrintSet:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
                 s.settimeout(30)
 
-                print('Trying to Connect to: ' + finalIPadd)
+                print('\nTrying to Connect to: ' + finalIPadd)
                 s.connect((str(finalIPadd), portNum))
 
                 s.close()
-                print( '\nPrinter Status: ' + Fore.GREEN + 'CONNECTED', '\nPrinter is ready to be used!')
+                print('\nPrinter Status: ' + Fore.GREEN + 'CONNECTED') 
+                print('\nPrinter is ready to be used!')
     
                 connection = True
 
