@@ -75,8 +75,8 @@ class GetPrintSet:
         configGet = ConfigParser()
         configGet.read(filename) 
 
-        ip = configGet.get('PRINTERSET', 'ipaddress')
-        portNum = configGet.get('PRINTERSET', 'port')
+        ip = configGet.get('IPINFO', 'ipaddress')
+        portNum = configGet.get('IPINFO', 'port')
 
         if (ip == '0.0.0.0' or portNum == '00000'):
             self.tkwindowset(ip, portNum)
@@ -88,7 +88,7 @@ class GetPrintSet:
     def fileDNE(self):
 
         configfiletext = ConfigParser()
-        configfiletext['PRINTERSET'] = {
+        configfiletext['IPINFO'] = {
             'ipaddress' : '0.0.0.0',
             'port' : '12349'
         }
@@ -104,7 +104,7 @@ class GetPrintSet:
 
         configSetIp = ConfigParser()
 
-        configSetIp['PRINTERSET'] = {
+        configSetIp['IPINFO'] = {
             'ipaddress' : ip,
             'port' : portNum
         }
@@ -114,7 +114,6 @@ class GetPrintSet:
 
         print(Fore.GREEN + '\nYOUR PRINTER SETTINGS HAVE BEEN SET!')
         print('\nChecking to see if printer is available.')
-        
 
 
     def checkIpAdd(self, ip):
@@ -294,8 +293,8 @@ class GetPrintSet:
         configGet = ConfigParser()
         configGet.read(filename) 
 
-        finalIPadd = configGet.get('PRINTERSET', 'ipaddress')
-        portNum = configGet.get('PRINTERSET', 'port')
+        finalIPadd = configGet.get('IPINFO', 'ipaddress')
+        portNum = configGet.get('IPINFO', 'port')
         portNum = int(portNum)
 
         while connection == False:
