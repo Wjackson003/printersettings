@@ -26,6 +26,9 @@ Version 0.2.1: Oct 11, 2022
          connect to the printer and close it. if it does not connect that means the printer is not up and
          running and there may be an error. if the ini file is already set you can still run the program
          to check to make sure the printer is up and running.
+Version 0.2.2: Oct 14, 2022
+    WT - made changes so the code would check by the hostname to make sure that the that it was or was not
+         the same computer then check the ip and perform the tasks needed that way.
 '''
 
 __Author__ = "W.T. Jackson III"
@@ -53,7 +56,28 @@ except ImportError:
     import ttk 
     from Tkinter import *     
 
+
 class GetPrintSet:  
+
+    def getHostName(self):
+        configGet = ConfigParser()
+        configGet.read(filename) 
+
+        ip = configGet.get('IPINFO', 'ipaddress')
+        portNum = configGet.get('IPINFO', 'port')
+        hostname = configGet.get('IPINFO', 'hostname')
+        
+        cHostName = socket.gethostname()
+
+        if hostname == '':
+            self.tkwindowset(ip, portNum)
+        elif hostname == cHostName:
+            if(ip == '0.0.0.0'):
+                self.tkwindowset(ip, portNum)
+        else:
+            if hostname != cHostName:
+                self.fileDNE()
+           
 
     def checkforfile(self, filereceived):
         global filename
@@ -61,56 +85,46 @@ class GetPrintSet:
         filename = self.filereceived
 
         printServer = os.path.exists(filename)
+
         try:
             if (printServer):
-                self.readfile()
+                self.getHostName()
             else:
                 self.fileDNE()
+            self.checkServer()
+        
         except Exception as e:
             print(e)    
 
 
-    def readfile(self):
-        #to read from a ini file:
-        configGet = ConfigParser()
-        configGet.read(filename) 
-
-        ip = configGet.get('IPINFO', 'ipaddress')
-        portNum = configGet.get('IPINFO', 'port')
-
-        if (ip == '0.0.0.0' or portNum == '00000'):
-            self.tkwindowset(ip, portNum)
-            self.checkServer()
-        else: 
-            self.checkServer()    
-
-
     def fileDNE(self):
-
         configfiletext = ConfigParser()
         configfiletext['IPINFO'] = {
             'ipaddress' : '0.0.0.0',
-            'port' : '12349'
+            'port' : '12349',
+            'hostname' : ''
         }
         with open(filename, 'w') as configfile:
             configfiletext.write(configfile)
-        
-        self.readfile()
+
+        self.getHostName()
 
 
     def writeToFile(self, ip, portNum):
-
         portNum = str(portNum)
 
-        configSetIp = ConfigParser()
+        configInfo = ConfigParser()
+        configInfo.read(filename)
+        hostname = socket.gethostname()
 
-        configSetIp['IPINFO'] = {
+        configInfo['IPINFO'] = {
             'ipaddress' : ip,
-            'port' : portNum
+            'port' : portNum,
+            'hostname' : str(hostname)
         }
 
         with open(filename, 'w') as configfile:
-            configSetIp.write(configfile)
+            configInfo.write(configfile)
 
         print(Fore.GREEN + '\nYOUR PRINTER SETTINGS HAVE BEEN SET!')
         print('\nChecking to see if printer is available.')
@@ -177,7 +191,6 @@ class GetPrintSet:
                 self.showerrorMessage('ERROR:Not Local','The ip address is in range but is not a local ip address')
                 self.tkwindowset('0.0.0.0', portNumEnt1)
 
-
         
     def checkportNum(self, portNum):
         isvalidinput = False
@@ -194,6 +207,7 @@ class GetPrintSet:
 
         if isvalidinput:
             self.writeToFile(finalIPadd, portNum)
+
 
     def showerrorMessage(self, errTitle, errText):
         errorIpAdd = tk.Tk()
@@ -286,9 +300,9 @@ class GetPrintSet:
 
         mainWindow.mainloop()
 
+
     def checkServer(self):
         connection = False
-        attempts = 1
 
         configGet = ConfigParser()
         configGet.read(filename) 
@@ -297,34 +311,49 @@ class GetPrintSet:
         portNum = configGet.get('IPINFO', 'port')
         portNum = int(portNum)
 
+        print('\nTrying to Connect to: ' + finalIPadd)
+
         while connection == False:
-            if attempts > 4:
-                print('\n' + Fore.RED + 'Attempts have been met now exiting!')
-                break
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-                s.settimeout(30)
+                s.settimeout(3)
 
-                print('\nTrying to Connect to: ' + finalIPadd)
                 s.connect((str(finalIPadd), portNum))
-
+                s.send(b'TEST')
                 s.close()
                 print('\nPrinter Status: ' + Fore.GREEN + 'CONNECTED') 
                 print('\nPrinter is ready to be used!')
-    
                 connection = True
 
-            except Exception as e:
-                print ('\nPrinter Status: ' + str(e))
-                print(Fore.YELLOW + 'The printer may not be connected')
-                attempts += 1
-                time.sleep(5)
- 
+            except Exception:
+                self.checkprinterset()
+                break
+
+
+    def checkprinterset(self):
+        checkprinter = tk.Tk()
+        checkprinter.geometry('575x100')
+        checkprinter.title('Printer Not Available')
+        checkprinter.resizable(0, 0)
+        checkprinter.eval('tk::PlaceWindow . center')
+
+        ttk.Label(checkprinter, text='Please check that printer is plugged in and make a selection\n').pack()
+
+        ttk.Button(checkprinter, text='Continue', command=lambda:[checkprinter.destroy(),self.checkServer()]).pack()
+        ttk.Button(checkprinter, text='Quit',command=checkprinter.destroy).pack()
+
+        checkprinter.mainloop()
+
 
 def main():
-    nGetPrintSet = GetPrintSet()
-    dirname = os.path.dirname(__file__)
-    sfile = os.path.join(dirname, 'printServer.ini')
-    nGetPrintSet.checkforfile(sfile)
+    try:
+        nGetPrintSet = GetPrintSet()
+        dirname = os.path.dirname(__file__)
+        sfile = os.path.join(dirname, 'printServer.ini')
+        nGetPrintSet.checkforfile(sfile)
+    except Exception as e:
+        print(e)
 
 
+if __name__ == '__main__':
+    main()
