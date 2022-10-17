@@ -28,24 +28,27 @@ Version 0.2.1: Oct 11, 2022
          to check to make sure the printer is up and running.
 Version 0.2.2: Oct 14, 2022
     WT - made changes so the code would check by the hostname to make sure that the that it was or was not
-         the same computer then check the ip and perform the tasks needed that way.
+         the same computer then check the ip and perform the tasks needed that way. also fixed an issue where
+         the main window would be called again and ask for an ip address. fixed issue with traceback receiving
+         an exception.
 '''
 
 __Author__ = "W.T. Jackson III"
-__Version__ = "0.2.1" 
+__Version__ = "0.2.2" 
 
+import sys
+import time
+import os.path
+import os,struct,socket
 from configparser import ConfigParser
+
 import colorama
 from colorama import Fore
+
 colorama.init(autoreset=True)
 
-import os.path
 import ipaddress
 import subprocess
-
-import os,struct,socket
-import time
-
 
 try:
     import tkinter as tk
@@ -61,7 +64,7 @@ class GetPrintSet:
 
     def getHostName(self):
         configGet = ConfigParser()
-        configGet.read(filename) 
+        configGet.read(self.filename) 
 
         ip = configGet.get('IPINFO', 'ipaddress')
         portNum = configGet.get('IPINFO', 'port')
@@ -74,25 +77,26 @@ class GetPrintSet:
         elif hostname == cHostName:
             if(ip == '0.0.0.0'):
                 self.tkwindowset(ip, portNum)
+            else:
+                self.checkServer()
         else:
             if hostname != cHostName:
                 self.fileDNE()
            
 
-    def checkforfile(self, filereceived):
-        global filename
-        self.filereceived =  filereceived
-        filename = self.filereceived
+    def checkforfile(self, filereceived, filename = ' ', finalIPadd= ' ', sPN = 12349):
+        self.finalIPadd = finalIPadd
+        self.sPN = sPN 
+        self.filename = filereceived
 
-        printServer = os.path.exists(filename)
+        printServer = os.path.exists(self.filename)
 
         try:
             if (printServer):
                 self.getHostName()
             else:
                 self.fileDNE()
-            self.checkServer()
-        
+
         except Exception as e:
             print(e)    
 
@@ -104,7 +108,7 @@ class GetPrintSet:
             'port' : '12349',
             'hostname' : ''
         }
-        with open(filename, 'w') as configfile:
+        with open(self.filename, 'w') as configfile:
             configfiletext.write(configfile)
 
         self.getHostName()
@@ -114,7 +118,7 @@ class GetPrintSet:
         portNum = str(portNum)
 
         configInfo = ConfigParser()
-        configInfo.read(filename)
+        configInfo.read(self.filename)
         hostname = socket.gethostname()
 
         configInfo['IPINFO'] = {
@@ -123,15 +127,19 @@ class GetPrintSet:
             'hostname' : str(hostname)
         }
 
-        with open(filename, 'w') as configfile:
+        with open(self.filename, 'w') as configfile:
             configInfo.write(configfile)
 
         print(Fore.GREEN + '\nYOUR PRINTER SETTINGS HAVE BEEN SET!')
         print('\nChecking to see if printer is available.')
+        self.checkServer()
 
 
     def checkIpAdd(self, ip):
-        global finalIPadd     
+        
+        #self.sPN=self.portNumEnt.get()
+        self.mainWindow.destroy()
+
         isV3 = True
         isV2 = False
 
@@ -140,7 +148,8 @@ class GetPrintSet:
             ip3 = ipaddress.ip_address(ip)
             print('Valid ip format')
             print('Checking ip address ' + str(ip3) + ' is in network.')
-            finalIPadd = self.checkinNet(ip3, isV3)
+            self.checkInNet(ip3, isV3)
+
 
         except ValueError as e:
             e = str(e)
@@ -149,22 +158,19 @@ class GetPrintSet:
                     ip2 = ipaddress.ip_address(ip.decode())
                     print('Valid ip format')
                     print('Checking ip address ' + str(ip2) + ' is in network.')
-                    finalIPadd = self.checkinNet(ip2, isV2)
-                    return   
+                    self.checkInNet(ip2, isV2)
 
                 else:
                     print(e) 
                     self.showerrorMessage('Invalid Format', ip + ' is an invalid format please try again')
-                    self.tkwindowset('0.0.0.0',portNumEnt1)
+                    self.tkwindowset('0.0.0.0')
             except ValueError as e:
                 print(e)
                 self.showerrorMessage('Invalid Format', ip + ' is an invalid format please try again')
-                self.tkwindowset('0.0.0.0',portNumEnt1)
-            self.showerrorMessage('Invalid Format', ip + ' is an invalid format please try again')
-            self.tkwindowset('0.0.0.0',portNumEnt1)
+                self.tkwindowset('0.0.0.0')
 
 
-    def checkinNet(self, ipnetworkCheck, py_v):
+    def checkInNet(self, ipnetworkCheck, py_v):
         if py_v == True:
             ipaddress.ip_address(ipnetworkCheck) in ipaddress.ip_network('192.168.0.0/16')
 
@@ -173,40 +179,28 @@ class GetPrintSet:
 
         else:
             self.showerrorMessage('Not In Network','\nThis ip address ' + str(ipnetworkCheck) + ' is not in network.')
-            self.tkwindowset('0.0.0.0', portNumEnt1)
-            return ipnetworkCheck
+            self.tkwindowset('0.0.0.0')
+
+            #return ipnetworkCheck
 
         FNULL = open(os.devnull, 'w')
 
         #testing ping
-        for ping in range(1,4):
+        for ping in range(1):
             answer = subprocess.call(['ping', '-c', '4', str(ipnetworkCheck)], 
             stdout = FNULL, 
             stderr = subprocess.STDOUT)
 
-            if(answer == 0):
-                print('\nIP Address ' + str(ipnetworkCheck) + ' verified in network')
-                return ipnetworkCheck
-            else:
-                self.showerrorMessage('ERROR:Not Local','The ip address is in range but is not a local ip address')
-                self.tkwindowset('0.0.0.0', portNumEnt1)
+        if(answer == 0):
+            print('\nIP Address ' + str(ipnetworkCheck) + ' verified in network')
+            self.finalIPadd = ipnetworkCheck
+            self.writeToFile(self.finalIPadd, self.sPN)
 
-        
-    def checkportNum(self, portNum):
-        isvalidinput = False
+            #return ipnetworkCheck
 
-        if portNum.isdigit() == isvalidinput:
-            self.showerrorMessage('Invalid Data', 'You may have typed a string please check your entry.')
-            self.tkwindowset(finalIPadd,'00000')
-
-        if len(portNum) < 5 or len(portNum) > 5 :
-            self.showerrorMessage('Invalid Length', 'Your port number must be 5 numbers.')
-            self.tkwindowset(finalIPadd,'00000')
-
-        isvalidinput = True
-
-        if isvalidinput:
-            self.writeToFile(finalIPadd, portNum)
+        else:
+            self.showerrorMessage('ERROR:Not Local','The ip address is in range but is not a local ip address')
+            self.tkwindowset('0.0.0.0')
 
 
     def showerrorMessage(self, errTitle, errText):
@@ -226,86 +220,55 @@ class GetPrintSet:
 
 
     def getData(self):
-        global ipEntered1 
-        global portNumEnt1 
-
+    
         ipEntered1 = ' '
-        portNumEnt1 = ' '
-
-        ipEntered1=ipEntered.get()
-        portNumEnt1=portNumEnt.get()
-
-        mainWindow.destroy()
+        ipEntered1=self.ipEntered.get()
 
         self.checkIpAdd(ipEntered1)
-        self.checkportNum(portNumEnt1)
-
-
-    def tkwindowset(self, ip, portNum):
-        global mainWindow
-        global ipEntered
-        global portNumEnt
         
-        mainWindow = tk.Tk()
-        mainWindow.geometry('475x100')
-        mainWindow.title('Printer Settings')
-        mainWindow.resizable(0, 0)
-        mainWindow.eval('tk::PlaceWindow . center')
 
-        mainWindow.columnconfigure(0, weight=1)
-        mainWindow.columnconfigure(1, weight=3)
+    def tkwindowset(self, ip, mainWindow = None, ipEntered = ' ', portNumEnt = ' '):
+        self.mainWindow = mainWindow
+        self.ipEntered = ipEntered
+        self.portNumEnt = portNumEnt
+        
+        self.mainWindow = tk.Tk()
+        self.mainWindow.geometry('475x100')
+        self.mainWindow.title('Printer Settings')
+        self.mainWindow.resizable(0, 0)
+        self.mainWindow.eval('tk::PlaceWindow . center')
+
+        self.mainWindow.columnconfigure(0, weight=1)
+        self.mainWindow.columnconfigure(1, weight=3)
 
         if ip == '0.0.0.0' :
-            ipLabel = ttk.Label(mainWindow, text= 'Enter IP Address:')
+            ipLabel = ttk.Label(self.mainWindow, text= 'Enter IP Address:')
             ipLabel.grid(column=0, row=0, sticky=tk.W, padx=5, pady=5)
 
-            ipEntered = ttk.Entry(mainWindow)
-            ipEntered.grid(column=1, row=0, sticky=tk.E, padx=5, pady=5) 
-            if portNum == '00000':
-                portLabel = ttk.Label(mainWindow, text= 'Enter Port Number:')
-                portLabel.grid(column=0, row=1, sticky=tk.W, padx=5, pady=5)
+            self.ipEntered = ttk.Entry(self.mainWindow)
+            self.ipEntered.grid(column=1, row=0, sticky=tk.E, padx=5, pady=5) 
 
-                portNumEnt = ttk.Entry(mainWindow)
-                portNumEnt.grid(column=1, row=1, sticky=tk.E, padx=5, pady=5)
-    
-            else:
-                portLabel = tk.Label(mainWindow, text= 'Port Number: ')
-                portLabel.grid(column=0, row=1,sticky=tk.W, padx=5, pady=5)
+            portLabel = tk.Label(self.mainWindow, text= 'Port Number: ')
+            portLabel.grid(column=0, row=1,sticky=tk.W, padx=5, pady=5)
 
-                portNumEnt = ttk.Entry(mainWindow)
-                portNumEnt.insert(0, portNum)
-                portNumEnt.configure(state=tk.DISABLED)
-                portNumEnt.grid(column=1, row=1, sticky=tk.E, padx=5, pady=5)
+            self.portNumEnt = ttk.Entry(self.mainWindow)
+            self.portNumEnt.insert(0, self.sPN)
+            self.portNumEnt.configure(state=tk.DISABLED)
+            self.portNumEnt.grid(column=1, row=1, sticky=tk.E, padx=5, pady=5)
 
-        if ip != '0.0.0.0' :
-            ipLabel = tk.Label(mainWindow, text= 'IP Address: ')
-            ipLabel.grid(column=0, row=0,sticky=tk.W, padx=5, pady=5)
-
-            ipEntered = ttk.Entry(mainWindow)
-            ipEntered.insert(0, ip)
-            ipEntered.configure(state=tk.DISABLED)
-            ipEntered.grid(column=1, row=0, sticky=tk.E, padx=5, pady=5)
-
-            if portNum == '00000':
-                portLabel = ttk.Label(mainWindow, text= 'Enter Port Number:')
-                portLabel.grid(column=0, row=1, sticky=tk.W, padx=5, pady=5)
-
-                portNumEnt = ttk.Entry(mainWindow)
-                portNumEnt.grid(column=1, row=1, sticky=tk.E, padx=5, pady=5)
-
-        submitbutton = ttk.Button(mainWindow, text='Submit', command=self.getData)
+        submitbutton = ttk.Button(self.mainWindow, text='Submit', command=self.getData)
         submitbutton.grid(column=1, row=3, sticky=tk.E, padx=5,pady=5)
         
-        mainWindow.bind('<Return>',self.getData1)
+        self.mainWindow.bind('<Return>',self.getData1)
 
-        mainWindow.mainloop()
+        self.mainWindow.mainloop()
 
 
     def checkServer(self):
         connection = False
 
         configGet = ConfigParser()
-        configGet.read(filename) 
+        configGet.read(self.filename) 
 
         finalIPadd = configGet.get('IPINFO', 'ipaddress')
         portNum = configGet.get('IPINFO', 'port')
@@ -323,12 +286,13 @@ class GetPrintSet:
                 s.close()
                 print('\nPrinter Status: ' + Fore.GREEN + 'CONNECTED') 
                 print('\nPrinter is ready to be used!')
-                connection = True
-
+                
+                connection = True        
+        
             except Exception:
                 self.checkprinterset()
                 break
-
+    
 
     def checkprinterset(self):
         checkprinter = tk.Tk()
